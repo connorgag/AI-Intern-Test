@@ -1,0 +1,32 @@
+{
+    "rooms": [
+        {"roomNumber": "101", "roomType": "dorm"},
+        {"roomNumber": "102", "roomType": "dorm"},
+        {"roomNumber": "103", "roomType": "dorm"},
+        {"roomNumber": "104", "roomType": "dorm"},
+        {"roomNumber": "105", "roomType": "dorm"},
+        {"roomNumber": "106", "roomType": "dorm"},
+        {"roomNumber": "M1", "roomType": "mechanical"},
+        {"roomNumber": "M2", "roomType": "mechanical"}
+    ],
+    "airConditioningUnits": [
+        {"label": "AC-Unit-M1", "location": "M1", "servicesRooms": ["101", "102", "103"]},
+        {"label": "AC-Unit-M2", "location": "M2", "servicesRooms": ["104", "105", "106"]}
+    ],
+    "temperatureSensors": [
+        {"label": "Temp-101", "roomNumber": "101"},
+        {"label": "Temp-102", "roomNumber": "102"},
+        {"label": "Temp-103", "roomNumber": "103"},
+        {"label": "Temp-104", "roomNumber": "104"},
+        {"label": "Temp-105", "roomNumber": "105"},
+        {"label": "Temp-106", "roomNumber": "106"}
+    ],
+    "occupancySensors": [
+        {"label": "Occ-101", "roomNumber": "101"},
+        {"label": "Occ-102", "roomNumber": "102"},
+        {"label": "Occ-103", "roomNumber": "103"},
+        {"label": "Occ-104", "roomNumber": "104"},
+        {"label": "Occ-105", "roomNumber": "105"},
+        {"label": "Occ-106", "roomNumber": "106"}
+    ]
+}
