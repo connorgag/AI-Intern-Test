@@ -1,153 +1,178 @@
-import json
 from neo4j import GraphDatabase
-import os
-from dotenv import load_dotenv
 
-class DormitoryGraphDatabase:
-    def __init__(self, uri, user, password, data_file='dorms_data.json'):
-        """
-        Initialize the Neo4j database connection
-        
-        :param uri: Neo4j database URI
-        :param user: Neo4j username
-        :param password: Neo4j password
-        :param data_file: Path to JSON configuration file
-        """
-        self._driver = GraphDatabase.driver(uri, auth=(user, password))
-        
-        # Load graph data from JSON
-        with open(data_file, 'r') as f:
-            self.graph_data = json.load(f)
+# Connect to the Neo4j database
+URI = "bolt://localhost:7687"
+AUTH = ("neo4j", "my_password")
 
-    def close(self):
-        """Close the database connection"""
-        self._driver.close()
+with GraphDatabase.driver(URI, auth=AUTH) as driver:
+    session = driver.session()
 
-    def _generate_create_query(self):
-        """
-        Generate Cypher query dynamically from JSON data
-        
-        :return: Cypher create query string
-        """
-        # Create nodes and relationships dynamically
-        create_nodes = []
-        create_relationships = []
+    # Clear the database
+    session.run("MATCH (n) DETACH DELETE n")
+    
+    # Create rooms (6 dorms and 2 mechanical rooms)
+    session.run("""
+    CREATE (room1:Room {name: 'Room 1', type: 'Dorm'}),
+           (room2:Room {name: 'Room 2', type: 'Dorm'}),
+           (room3:Room {name: 'Room 3', type: 'Dorm'}),
+           (room4:Room {name: 'Room 4', type: 'Dorm'}),
+           (room5:Room {name: 'Room 5', type: 'Dorm'}),
+           (room6:Room {name: 'Room 6', type: 'Dorm'}),
+           (room7:Room {name: 'Room 7', type: 'Mechanical'}),
+           (room8:Room {name: 'Room 8', type: 'Mechanical'})
+    """)
 
-        # Create Room Nodes
-        for room in self.graph_data['rooms']:
-            create_nodes.append(f"(room_{room['roomNumber']}:Room {{roomNumber: '{room['roomNumber']}', roomType: '{room['roomType']}'}}")
+    # Create Air Conditioning Units
+    session.run("""
+    CREATE (ac1:AirConditioningUnit {name: 'AC Unit 1'}),
+           (ac2:AirConditioningUnit {name: 'AC Unit 2'})
+    """)
 
-        # Create AC Unit Nodes
-        for ac in self.graph_data['airConditioningUnits']:
-            create_nodes.append(f"(ac_{ac['label']}:AirConditioningUnit {{label: '{ac['label']}', location: '{ac['location']}'}}")
-            
-            # AC Unit to Room Services
-            for room_number in ac['servicesRooms']:
-                create_relationships.append(f"(ac_{ac['label']})-[:SERVICES]->(room_{room_number})")
+    # Create relationships between rooms and air conditioning units
+    session.run("""
+    MATCH (room1:Room {name: 'Room 1'}), (room2:Room {name: 'Room 2'}), (room3:Room {name: 'Room 3'}), (ac1:AirConditioningUnit {name: 'AC Unit 1'})
+    CREATE (ac1)-[:SERVICES]->(room1),
+           (ac1)-[:SERVICES]->(room2),
+           (ac1)-[:SERVICES]->(room3)
+    """)
 
-        # Create Temperature Sensor Nodes
-        for sensor in self.graph_data['temperatureSensors']:
-            create_nodes.append(f"(tempSensor_{sensor['label']}:TemperatureSensor {{label: '{sensor['label']}', roomNumber: '{sensor['roomNumber']}'}}")
-            
-            # Sensor to Room and AC Unit Relationships
-            create_relationships.append(f"(tempSensor_{sensor['label']})-[:MONITORS]->(room_{sensor['roomNumber']})")
-            
-            # Find corresponding AC Unit
-            for ac in self.graph_data['airConditioningUnits']:
-                if sensor['roomNumber'] in ac['servicesRooms']:
-                    create_relationships.append(f"(tempSensor_{sensor['label']})-[:REPORTS_TO]->(ac_{ac['label']})")
+    session.run("""
+    MATCH (room4:Room {name: 'Room 4'}), (room5:Room {name: 'Room 5'}), (room6:Room {name: 'Room 6'}), (ac2:AirConditioningUnit {name: 'AC Unit 2'})
+    CREATE (ac2)-[:SERVICES]->(room4),
+           (ac2)-[:SERVICES]->(room5),
+           (ac2)-[:SERVICES]->(room6)
+    """)
 
-        # Create Occupancy Sensor Nodes
-        for sensor in self.graph_data['occupancySensors']:
-            create_nodes.append(f"(occupancySensor_{sensor['label']}:OccupancySensor {{label: '{sensor['label']}', roomNumber: '{sensor['roomNumber']}'}}")
-            
-            # Sensor to Room Relationships
-            create_relationships.append(f"(occupancySensor_{sensor['label']})-[:MONITORS]->(room_{sensor['roomNumber']})")
+    # Create sensors for temperature and occupancy
+    session.run("""
+    CREATE (tempSensor1:TemperatureSensor {label: 'Temp Sensor 1'}),
+           (tempSensor2:TemperatureSensor {label: 'Temp Sensor 2'}),
+           (tempSensor3:TemperatureSensor {label: 'Temp Sensor 3'}),
+           (tempSensor4:TemperatureSensor {label: 'Temp Sensor 4'}),
+           (tempSensor5:TemperatureSensor {label: 'Temp Sensor 5'}),
+           (tempSensor6:TemperatureSensor {label: 'Temp Sensor 6'}),
+           (occSensor1:OccupancySensor {label: 'Occupancy Sensor 1'}),
+           (occSensor2:OccupancySensor {label: 'Occupancy Sensor 2'}),
+           (occSensor3:OccupancySensor {label: 'Occupancy Sensor 3'}),
+           (occSensor4:OccupancySensor {label: 'Occupancy Sensor 4'}),
+           (occSensor5:OccupancySensor {label: 'Occupancy Sensor 5'}),
+           (occSensor6:OccupancySensor {label: 'Occupancy Sensor 6'})
+    """)
 
-        # Combine all nodes and relationships
-        full_query = "CREATE \n" + ",\n".join(create_nodes) + ",\n" + ",\n".join(create_relationships) + ";"
-        return full_query
+    # Create relationships between sensors and rooms
+    session.run("""
+    MATCH (room1:Room {name: 'Room 1'}), (tempSensor1:TemperatureSensor {label: 'Temp Sensor 1'}), (occSensor1:OccupancySensor {label: 'Occupancy Sensor 1'})
+    CREATE (room1)-[:MONITORS]->(tempSensor1),
+           (room1)-[:MEASURES]->(occSensor1)
+    """)
 
-    def create_dormitory_model(self):
-        """
-        Create the entire dormitory graph model using dynamic query generation
-        """
-        create_query = self._generate_create_query()
-        
-        with self._driver.session() as session:
-            session.run(create_query)
+    session.run("""
+    MATCH (room2:Room {name: 'Room 2'}), (tempSensor2:TemperatureSensor {label: 'Temp Sensor 2'}), (occSensor2:OccupancySensor {label: 'Occupancy Sensor 2'})
+    CREATE (room2)-[:MONITORS]->(tempSensor2),
+           (room2)-[:MEASURES]->(occSensor2)
+    """)
 
-    def get_rooms_by_ac_unit(self, ac_unit_label):
-        """
-        Retrieve rooms serviced by a specific AC Unit
-        
-        :param ac_unit_label: Label of the AC Unit
-        :return: List of room numbers
-        """
-        query = """
-        MATCH (ac:AirConditioningUnit)-[:SERVICES]->(room:Room)
-        WHERE ac.label = $ac_unit_label
-        RETURN room.roomNumber
-        """
-        
-        with self._driver.session() as session:
-            result = session.run(query, ac_unit_label=ac_unit_label)
-            return [record["room.roomNumber"] for record in result]
+    session.run("""
+    MATCH (room3:Room {name: 'Room 3'}), (tempSensor3:TemperatureSensor {label: 'Temp Sensor 3'}), (occSensor3:OccupancySensor {label: 'Occupancy Sensor 3'})
+    CREATE (room3)-[:MONITORS]->(tempSensor3),
+           (room3)-[:MEASURES]->(occSensor3)
+    """)
 
-    def get_temperature_sensors_for_ac_unit(self, ac_unit_label):
-        """
-        Retrieve temperature sensors reporting to a specific AC Unit
-        
-        :param ac_unit_label: Label of the AC Unit
-        :return: List of temperature sensor labels
-        """
-        query = """
-        MATCH (tempSensor:TemperatureSensor)-[:REPORTS_TO]->(ac:AirConditioningUnit)
-        WHERE ac.label = $ac_unit_label
-        RETURN tempSensor.label
-        """
-        
-        with self._driver.session() as session:
-            result = session.run(query, ac_unit_label=ac_unit_label)
-            return [record["tempSensor.label"] for record in result]
+    session.run("""
+    MATCH (room4:Room {name: 'Room 4'}), (tempSensor4:TemperatureSensor {label: 'Temp Sensor 4'}), (occSensor4:OccupancySensor {label: 'Occupancy Sensor 4'})
+    CREATE (room4)-[:MONITORS]->(tempSensor4),
+           (room4)-[:MEASURES]->(occSensor4)
+    """)
 
-def main():
-    load_dotenv()
+    session.run("""
+    MATCH (room5:Room {name: 'Room 5'}), (tempSensor5:TemperatureSensor {label: 'Temp Sensor 5'}), (occSensor5:OccupancySensor {label: 'Occupancy Sensor 5'})
+    CREATE (room5)-[:MONITORS]->(tempSensor5),
+           (room5)-[:MEASURES]->(occSensor5)
+    """)
 
-    uri = os.getenv('NEO4J_URI')
-    user = os.getenv('NEO4J_USER')
-    password = os.getenv('NEO4J_PASSWORD')
+    session.run("""
+    MATCH (room6:Room {name: 'Room 6'}), (tempSensor6:TemperatureSensor {label: 'Temp Sensor 6'}), (occSensor6:OccupancySensor {label: 'Occupancy Sensor 6'})
+    CREATE (room6)-[:MONITORS]->(tempSensor6),
+           (room6)-[:MEASURES]->(occSensor6)
+    """)
 
-    # Create the graph database instance
-    graph_db = DormitoryGraphDatabase(uri, user, password)
+    # Create relationships between air conditioning units and temperature sensors in dorm rooms
+    session.run("""
+    MATCH (ac1:AirConditioningUnit {name: 'AC Unit 1'}), (tempSensor1:TemperatureSensor {label: 'Temp Sensor 1'}), (tempSensor2:TemperatureSensor {label: 'Temp Sensor 2'}), (tempSensor3:TemperatureSensor {label: 'Temp Sensor 3'})
+    CREATE (tempSensor1)-[:SERVICES_AC_UNIT]->(ac1),
+           (tempSensor2)-[:SERVICES_AC_UNIT]->(ac1),
+           (tempSensor3)-[:SERVICES_AC_UNIT]->(ac1)
+    """)
 
-    URI = uri
-    AUTH = (user, password)
+    session.run("""
+    MATCH (ac2:AirConditioningUnit {name: 'AC Unit 2'}), (tempSensor4:TemperatureSensor {label: 'Temp Sensor 4'}), (tempSensor5:TemperatureSensor {label: 'Temp Sensor 5'}), (tempSensor6:TemperatureSensor {label: 'Temp Sensor 6'})
+    CREATE (tempSensor4)-[:SERVICES_AC_UNIT]->(ac2),
+           (tempSensor5)-[:SERVICES_AC_UNIT]->(ac2),
+           (tempSensor6)-[:SERVICES_AC_UNIT]->(ac2)
+    """)
 
-    with GraphDatabase.driver(URI, auth=AUTH) as driver:
-        driver.verify_connectivity()
-        print("Connection established.")
+    # Create profiles for occupancy sensors
+    session.run("""
+    CREATE (profile1:OccupancyProfile {name: 'Full-time student', schedule: '7-9am, 1-3pm, 8-10pm, night'}),
+           (profile2:OccupancyProfile {name: 'Working night student', schedule: '6-8am, 4-6pm, 9-11pm, night'})
+    """)
 
+    # Assign profiles to occupancy sensors
+    session.run("""
+    MATCH (occSensor1:OccupancySensor {label: 'Occupancy Sensor 1'}), (profile1:OccupancyProfile {name: 'Full-time student'})
+    CREATE (occSensor1)-[:HAS_PROFILE]->(profile1)
+    """)
 
-    return 
+    session.run("""
+    MATCH (occSensor2:OccupancySensor {label: 'Occupancy Sensor 2'}), (profile1:OccupancyProfile {name: 'Full-time student'})
+    CREATE (occSensor2)-[:HAS_PROFILE]->(profile1)
+    """)
 
+    session.run("""
+    MATCH (occSensor3:OccupancySensor {label: 'Occupancy Sensor 3'}), (profile2:OccupancyProfile {name: 'Working night student'})
+    CREATE (occSensor3)-[:HAS_PROFILE]->(profile2)
+    """)
 
+    session.run("""
+    MATCH (occSensor4:OccupancySensor {label: 'Occupancy Sensor 4'}), (profile2:OccupancyProfile {name: 'Working night student'})
+    CREATE (occSensor4)-[:HAS_PROFILE]->(profile2)
+    """)
 
+    # Create temperature profiles for dorm rooms
+    session.run("""
+    CREATE (profile3:TemperatureProfile {name: 'Sun-facing rooms', tempDifference: '2-4°C warmer'}),
+           (profile4:TemperatureProfile {name: 'Shaded rooms', tempDifference: 'cooler'})
+    """)
 
-    try:
-        # Create the dormitory model
-        graph_db.create_dormitory_model()
+    # Assign temperature profiles to rooms
+    session.run("""
+    MATCH (room1:Room {name: 'Room 1'}), (profile3:TemperatureProfile {name: 'Sun-facing rooms'})
+    CREATE (room1)-[:HAS_TEMP_PROFILE]->(profile3)
+    """)
 
-        # Example queries
-        print("Rooms serviced by AC-Unit-M1:")
-        print(graph_db.get_rooms_by_ac_unit('AC-Unit-M1'))
+    session.run("""
+    MATCH (room2:Room {name: 'Room 2'}), (profile3:TemperatureProfile {name: 'Sun-facing rooms'})
+    CREATE (room2)-[:HAS_TEMP_PROFILE]->(profile3)
+    """)
 
-        print("\nTemperature sensors for AC-Unit-M2:")
-        print(graph_db.get_temperature_sensors_for_ac_unit('AC-Unit-M2'))
+    session.run("""
+    MATCH (room3:Room {name: 'Room 3'}), (profile3:TemperatureProfile {name: 'Sun-facing rooms'})
+    CREATE (room3)-[:HAS_TEMP_PROFILE]->(profile3)
+    """)
 
-    finally:
-        # Always close the connection
-        graph_db.close()
+    session.run("""
+    MATCH (room4:Room {name: 'Room 4'}), (profile4:TemperatureProfile {name: 'Shaded rooms'})
+    CREATE (room4)-[:HAS_TEMP_PROFILE]->(profile4)
+    """)
 
-if __name__ == "__main__":
-    main()
+    session.run("""
+    MATCH (room5:Room {name: 'Room 5'}), (profile4:TemperatureProfile {name: 'Shaded rooms'})
+    CREATE (room5)-[:HAS_TEMP_PROFILE]->(profile4)
+    """)
+
+    session.run("""
+    MATCH (room6:Room {name: 'Room 6'}), (profile4:TemperatureProfile {name: 'Shaded rooms'})
+    CREATE (room6)-[:HAS_TEMP_PROFILE]->(profile4)
+    """)
+
+    print("Graph creation complete.")
