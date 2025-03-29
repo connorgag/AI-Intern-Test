@@ -326,16 +326,15 @@ if __name__ == "__main__":
 
     # Step 3: Write to InfluxDB (optional)
     load_dotenv()
-    influx_token = os.getenv("INFLUX_TOKEN")
 
     write_to_influxdb(
         occupancy_file, 
         temperature_file,
         # Update these with your InfluxDB connection details
-        influx_url="http://localhost:8086",
-        influx_token=influx_token,
-        influx_org="none",
-        influx_bucket="bucket"
+        influx_url=os.getenv("INFLUX_URL"),
+        influx_token=os.getenv("INFLUX_TOKEN"),
+        influx_org=os.getenv("INFLUX_ORG"),
+        influx_bucket=os.getenv("INFLUX_BUCKET")
     )
 
     

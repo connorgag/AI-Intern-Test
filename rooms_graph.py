@@ -1,7 +1,11 @@
 from neo4j import GraphDatabase
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Connect to the Neo4j database
-URI = "bolt://localhost:7687"
+URI = os.getenv("NEO4J_URI")
 AUTH = ("neo4j", "my_password")
 
 with GraphDatabase.driver(URI, auth=AUTH) as driver:
@@ -110,69 +114,5 @@ with GraphDatabase.driver(URI, auth=AUTH) as driver:
            (tempSensor5)-[:SERVICES_AC_UNIT]->(ac2),
            (tempSensor6)-[:SERVICES_AC_UNIT]->(ac2)
     """)
-
-    # Create profiles for occupancy sensors
-    # session.run("""
-    # CREATE (profile1:OccupancyProfile {name: 'Full-time student', schedule: '7-9am, 1-3pm, 8-10pm, night'}),
-    #        (profile2:OccupancyProfile {name: 'Working night student', schedule: '6-8am, 4-6pm, 9-11pm, night'})
-    # """)
-
-    # # Assign profiles to occupancy sensors
-    # session.run("""
-    # MATCH (occSensor1:OccupancySensor {label: 'Occupancy Sensor 1'}), (profile1:OccupancyProfile {name: 'Full-time student'})
-    # CREATE (occSensor1)-[:HAS_PROFILE]->(profile1)
-    # """)
-
-    # session.run("""
-    # MATCH (occSensor2:OccupancySensor {label: 'Occupancy Sensor 2'}), (profile1:OccupancyProfile {name: 'Full-time student'})
-    # CREATE (occSensor2)-[:HAS_PROFILE]->(profile1)
-    # """)
-
-    # session.run("""
-    # MATCH (occSensor3:OccupancySensor {label: 'Occupancy Sensor 3'}), (profile2:OccupancyProfile {name: 'Working night student'})
-    # CREATE (occSensor3)-[:HAS_PROFILE]->(profile2)
-    # """)
-
-    # session.run("""
-    # MATCH (occSensor4:OccupancySensor {label: 'Occupancy Sensor 4'}), (profile2:OccupancyProfile {name: 'Working night student'})
-    # CREATE (occSensor4)-[:HAS_PROFILE]->(profile2)
-    # """)
-
-    # Create temperature profiles for dorm rooms
-    # session.run("""
-    # CREATE (profile3:TemperatureProfile {name: 'Sun-facing rooms', tempDifference: '2-4°C warmer'}),
-    #        (profile4:TemperatureProfile {name: 'Shaded rooms', tempDifference: 'cooler'})
-    # """)
-
-    # # Assign temperature profiles to rooms
-    # session.run("""
-    # MATCH (room1:Room {name: 'Room 1'}), (profile3:TemperatureProfile {name: 'Sun-facing rooms'})
-    # CREATE (room1)-[:HAS_TEMP_PROFILE]->(profile3)
-    # """)
-
-    # session.run("""
-    # MATCH (room2:Room {name: 'Room 2'}), (profile3:TemperatureProfile {name: 'Sun-facing rooms'})
-    # CREATE (room2)-[:HAS_TEMP_PROFILE]->(profile3)
-    # """)
-
-    # session.run("""
-    # MATCH (room3:Room {name: 'Room 3'}), (profile3:TemperatureProfile {name: 'Sun-facing rooms'})
-    # CREATE (room3)-[:HAS_TEMP_PROFILE]->(profile3)
-    # """)
-
-    # session.run("""
-    # MATCH (room4:Room {name: 'Room 4'}), (profile4:TemperatureProfile {name: 'Shaded rooms'})
-    # CREATE (room4)-[:HAS_TEMP_PROFILE]->(profile4)
-    # """)
-
-    # session.run("""
-    # MATCH (room5:Room {name: 'Room 5'}), (profile4:TemperatureProfile {name: 'Shaded rooms'})
-    # CREATE (room5)-[:HAS_TEMP_PROFILE]->(profile4)
-    # """)
-
-    # session.run("""
-    # MATCH (room6:Room {name: 'Room 6'}), (profile4:TemperatureProfile {name: 'Shaded rooms'})
-    # CREATE (room6)-[:HAS_TEMP_PROFILE]->(profile4)
-    # """)
 
     print("Graph creation complete.")
