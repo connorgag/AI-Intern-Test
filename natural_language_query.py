@@ -6,23 +6,41 @@ from neo4j import GraphDatabase
 from influxdb_client import InfluxDBClient
 import openai
 import json
+import streamlit as st
 
-# Load environment variables
-load_dotenv(dotenv_path=".env")
+# Check if Streamlit secrets should be used (set this flag to True or False)
+USE_STREAMLIT_SECRETS = True  # Set this based on your condition
 
-# Configure OpenAI API
-openai.api_key = os.getenv("OPENAIAPI_KEY")
+if USE_STREAMLIT_SECRETS:
+    # Use Streamlit secrets
+    openai.api_key = st.secrets["openai"]["OPENAIAPI_KEY"]
+    
+    # Neo4j connection
+    NEO4J_URI = st.secrets["neo4j"]["uri"]
+    NEO4J_USER = st.secrets["neo4j"]["user"]
+    NEO4J_PASSWORD = st.secrets["neo4j"]["password"]
+    
+    # InfluxDB connection
+    INFLUX_URL = st.secrets["influxdb"]["url"]
+    INFLUX_TOKEN = st.secrets["influxdb"]["token"]
+    INFLUX_ORG = st.secrets["influxdb"]["org"]
+    INFLUX_BUCKET = st.secrets["influxdb"]["bucket"]
+else:
+    # Load environment variables
+    load_dotenv(dotenv_path=".env")
 
+    # Configure OpenAI API
+    openai.api_key = os.getenv("OPENAIAPI_KEY")
 
-# Database connection parameters
-NEO4J_URI = "bolt://localhost:7687"
-NEO4J_USER = "neo4j"
-NEO4J_PASSWORD = "my_password"
+    # Database connection parameters
+    NEO4J_URI = "bolt://localhost:7687"
+    NEO4J_USER = "neo4j"
+    NEO4J_PASSWORD = "my_password"
 
-INFLUX_URL = "http://localhost:8086"
-INFLUX_TOKEN = os.getenv("INFLUX_TOKEN")
-INFLUX_ORG = os.getenv("INFLUX_ORG", "none")
-INFLUX_BUCKET = os.getenv("INFLUX_BUCKET", "bucket")
+    INFLUX_URL = "http://localhost:8086"
+    INFLUX_TOKEN = os.getenv("INFLUX_TOKEN")
+    INFLUX_ORG = os.getenv("INFLUX_ORG", "none")
+    INFLUX_BUCKET = os.getenv("INFLUX_BUCKET", "bucket")
 
 
 class NaturalLanguageQueryProcessor:
