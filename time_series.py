@@ -315,7 +315,7 @@ def write_to_influxdb(occupancy_file, temperature_file,
 # Main execution
 if __name__ == "__main__":
     # Set start time to current time or a specific date
-    start_time = datetime.now()
+    start_time = datetime.now() - timedelta(days=7)
     
     # Step 1: Generate Sensor Data
     generator = SensorDataGenerator(start_time)

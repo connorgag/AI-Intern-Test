@@ -1,12 +1,12 @@
 import argparse
 import os
-from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from neo4j import GraphDatabase
 from influxdb_client import InfluxDBClient
 import openai
 import json
 import streamlit as st
+from utils import read_file
 
 # Check if Streamlit secrets should be used (set this flag to True or False)
 USE_STREAMLIT_SECRETS = True  # Set this based on your condition
@@ -62,7 +62,6 @@ class NaturalLanguageQueryProcessor:
             # Get Neo4j schema to help with query generation
             with self.neo4j_driver.session() as session:
                 self.neo4j_schema = self.get_neo4j_schema(session)
-            
         except Exception as e:
             print(f"Failed to connect to Neo4j: {e}")
             self.neo4j_driver = None
@@ -79,7 +78,7 @@ class NaturalLanguageQueryProcessor:
             
             # Get InfluxDB schema information
             self.influx_schema = self.get_influxdb_schema()
-            
+            print("InfluxDB schema information:")
         except Exception as e:
             print(f"Failed to connect to InfluxDB: {e}")
             self.influx_client = None
@@ -249,38 +248,39 @@ class NaturalLanguageQueryProcessor:
         influxdb_schema_json = json.dumps(influxdb_simple_schema, indent=2)
         
         prompt = f"""Given the following database schemas and user query, determine which database should handle the query.
-        
-Neo4j is a graph database that stores relationships between entities. It is good for queries about relationships, connections, and structural data.
-Schema: {neo4j_schema_json}
 
-InfluxDB is a time-series database that stores measurements over time. It is good for queries about sensor data, measurements, and time-based analysis.
-Schema: {influxdb_schema_json}
+# Building Management System Database Background
+
+This document provides information about the dormitory building management system databases used for monitoring and controlling room conditions. The system consists of two interconnected databases:
+
+1. **Neo4j Graph Database**: Stores the structural relationships between rooms, sensors, and HVAC equipment
+2. **InfluxDB Time Series Database**: Stores the historical sensor readings and measurements over time
+        
+{read_file("context/neo4j_background.txt")}
+
+Neo4j Schema: {neo4j_schema_json}
+
+{read_file("context/influx_background.txt")}
+
+InfluxDB Schema: {influxdb_schema_json}
 
 User query: "{query}"
 
-Output only one of these options: "neo4j", "influxdb", or "hybrid" (if both databases are needed).
+Return ONLY ONE WORD from these options: neo4j, influxdb, hybrid (if both databases are needed), none (if none of the databases are need if it's a general question).
 """
-        print(prompt)
-        try:
-            response = openai.chat.completions.create(
-                model=self.model,
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0,
-                max_tokens=10
-            )
-            
-            database_choice = response.choices[0].message.content.strip().lower()
-            
-            if database_choice in ["neo4j", "influxdb", "hybrid"]:
-                return database_choice
-            else:
-                print(f"Unexpected database choice: {database_choice}. Defaulting to Neo4j.")
-                return "neo4j"
-                
-        except Exception as e:
-            print(f"Error determining database: {e}")
-            # Default to Neo4j if there's an error
-            return "neo4j"
+        response = openai.chat.completions.create(
+            model=self.model,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0,
+            max_tokens=10
+        )
+        
+        database_choice = response.choices[0].message.content.strip().lower()
+        
+        if database_choice in ["neo4j", "influxdb", "hybrid", "none"]:
+            return database_choice
+        else:
+            raise ValueError(f"Unexpected database choice: {database_choice}")
     
     def generate_neo4j_query(self, natural_language_query):
         """Generate a Cypher query from natural language using LLM with detailed schema info"""
@@ -309,6 +309,8 @@ Output only one of these options: "neo4j", "influxdb", or "hybrid" (if both data
         schema_json = json.dumps(schema_for_llm, indent=2)
         
         prompt = f"""Generate a Cypher query for Neo4j that accurately answers the natural language query.
+
+Background: {read_file("context/neo4j_background.txt")}
 
 Neo4j DATABASE SCHEMA (with sample data):
 {schema_json}
@@ -343,7 +345,7 @@ Return ONLY the executable Cypher query with no additional explanation or text.
         except Exception as e:
             print(f"Error generating Cypher query: {e}")
             return None
-    
+        
     def generate_influxdb_query(self, natural_language_query):
         """Generate a Flux query for InfluxDB from natural language using LLM with detailed schema"""
         # Extract key schema information for better query generation
@@ -362,10 +364,11 @@ Return ONLY the executable Cypher query with no additional explanation or text.
         }
         
         # Convert to JSON for cleaner formatting
-        print(f"Schema for LLM: {schema_for_llm}")
         schema_json = json.dumps(schema_for_llm, indent=2, default=str)
         
         prompt = f"""Generate a Flux query for InfluxDB that accurately answers the natural language query.
+
+Background: {read_file("context/influx_background.txt")}
 
 InfluxDB SCHEMA (with sample data):
 {schema_json}
@@ -443,12 +446,28 @@ Return ONLY the executable Flux query with no additional explanation or text.
     
     def format_response(self, query_result, original_query):
         """Format database result into natural language using LLM"""
+        if len(str(query_result)) > 100:
+            shortened_query = f"{str(query_result)[:100]}...{str(query_result)[-100:]}"
+        else:
+            shortened_query = str(query_result)
+
         prompt = f"""Given the following database query result and the original natural language query, 
 generate a simple, concise natural language response that answers the user's question directly.
 
-Original query: "{original_query}"
+# Building Management System Database Background
 
-Database result: {query_result}
+This document provides information about the dormitory building management system databases used for monitoring and controlling room conditions. The system consists of two interconnected databases:
+
+1. **Neo4j Graph Database**: Stores the structural relationships between rooms, sensors, and HVAC equipment
+2. **InfluxDB Time Series Database**: Stores the historical sensor readings and measurements over time
+
+{read_file("context/neo4j_background.txt")}
+
+{read_file("context/influx_background.txt")}
+
+Original query: {original_query}
+
+Database result: {shortened_query}
 
 Format your response to be clear, concise, and directly answer the question.
 """
@@ -475,42 +494,68 @@ Format your response to be clear, concise, and directly answer the question.
         print(f"Query will be processed using: {database_type}")
         
         # Step 2: Generate and execute query based on database type
+        raw_result = None
+        query_info = {}
+        
         if database_type == "neo4j":
             # Generate and execute Neo4j query
             cypher_query = self.generate_neo4j_query(natural_language_query)
             print(f"Generated Cypher query: {cypher_query}")
             
-            result = self.execute_neo4j_query(cypher_query)
+            query_info = {
+                "database_type": database_type,
+                "query": cypher_query
+            }
+            
+            raw_result = self.execute_neo4j_query(cypher_query)
             
         elif database_type == "influxdb":
             # Generate and execute InfluxDB query
             flux_query = self.generate_influxdb_query(natural_language_query)
             print(f"Generated Flux query: {flux_query}")
             
-            result = self.execute_influxdb_query(flux_query)
+            query_info = {
+                "database_type": database_type,
+                "query": flux_query
+            }
+            
+            raw_result = self.execute_influxdb_query(flux_query)
             
         elif database_type == "hybrid":
-            # Handle hybrid queries (this is a simplified approach)
-            # In a real-world scenario, this would be more complex
-            # First, try Neo4j
+            # Handle hybrid queries
             cypher_query = self.generate_neo4j_query(natural_language_query)
             print(f"Generated Cypher query: {cypher_query}")
             neo4j_result = self.execute_neo4j_query(cypher_query)
             
-            # Then, try InfluxDB
             flux_query = self.generate_influxdb_query(natural_language_query)
             print(f"Generated Flux query: {flux_query}")
             influx_result = self.execute_influxdb_query(flux_query)
             
+            query_info = {
+                "database_type": database_type,
+                "neo4j_query": cypher_query,
+                "influxdb_query": flux_query
+            }       
+
             # Combine results
-            result = {
+            raw_result = {
                 "neo4j_result": neo4j_result,
                 "influxdb_result": influx_result
-            }
-        
+            }        
+            
+        elif database_type == "none":
+            # Handle cases where no database is needed
+            raw_result = "This is a general question that does not require database access. Answer it directly using the background information"
+
         # Step 3: Format the response
-        formatted_response = self.format_response(result, natural_language_query)
-        return formatted_response
+        formatted_response = self.format_response(raw_result, natural_language_query)
+        
+        # Return both the formatted response and the raw data
+        return {
+            "formatted_response": formatted_response,
+            "raw_data": raw_result,
+            "query_info": query_info
+        }
     
     def close_connections(self):
         """Close database connections"""
@@ -535,7 +580,8 @@ def main():
         # Process the query
         result = processor.process_query(args.query)
         print(f"Query: {args.query}")
-        print(f"Answer: {result}")
+        print(f"Answer: {result['formatted_response']}")
+        # Raw data is available in result['raw_data']
     finally:
         # Close database connections
         processor.close_connections()
