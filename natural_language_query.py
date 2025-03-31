@@ -446,8 +446,8 @@ Return ONLY the executable Flux query with no additional explanation or text.
     
     def format_response(self, query_result, original_query):
         """Format database result into natural language using LLM"""
-        if len(str(query_result)) > 100:
-            shortened_query = f"{str(query_result)[:100]}...{str(query_result)[-100:]}"
+        if len(str(query_result)) > 5000:
+            shortened_query = f"{str(query_result)[:300]}...{str(query_result)[-300:]}"
         else:
             shortened_query = str(query_result)
 
@@ -471,7 +471,7 @@ Database result: {shortened_query}
 
 Format your response to be clear, concise, and directly answer the question.
 """
-        
+        print(prompt)
         try:
             response = openai.chat.completions.create(
                 model=self.model,
