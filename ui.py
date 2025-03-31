@@ -251,7 +251,7 @@ def visualize_graph(neo4j_records):
 def main():
     st.set_page_config(layout="wide")  # Use wide mode for more space
     
-    st.title("Digital Twin Query Interface")
+    st.title("Digital Twin Natural Language Query Interface")
     
     # Initialize database connector in session state
     if 'db_connector' not in st.session_state:
@@ -270,8 +270,7 @@ def main():
     
     # Tab 1: Natural Language Query
     # with tabs[0]:
-    st.header("Natural Language Query")
-    st.write("Ask a question about the data, and we'll process it for you!")
+    st.write("Ask a question about the Digital Twin data, and we'll process it for you!")
     
     # User input
     query = st.text_input("Enter your query:")
