@@ -2,3 +2,4 @@ neo4j
 dotenv
 influxdb_client
 openai
+seaborn
