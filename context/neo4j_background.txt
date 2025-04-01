@@ -1,0 +1,36 @@
+## Neo4j Graph Database
+
+The Neo4j database maintains the physical relationships between building components. It models how rooms, sensors, and equipment are connected to each other. It is good for queries about relationships, connections, and structural data.
+
+### Node Types:
+- **Room**: Represents a physical space in the building (dorm room or mechanical room)
+- **AirConditioningUnit**: Represents an HVAC unit that controls the temperature in dorm rooms
+- **TemperatureSensor**: Devices that monitor the temperature in rooms
+- **OccupancySensor**: Devices that detect whether rooms are occupied
+
+### Relationship Types:
+- **SERVICES**: Connects an AC unit to the rooms it conditions
+- **MONITORS**: Connects a room to its temperature sensor
+- **MEASURES**: Connects a room to its occupancy sensor
+- **SERVICES_AC_UNIT**: Connects temperature sensors back to the AC unit they inform
+
+### Database Schema:
+(AirConditioningUnit)-[SERVICES]->(Room)
+(Room)-[MONITORS]->(TemperatureSensor)
+(Room)-[MEASURES]->(OccupancySensor)
+(TemperatureSensor)-[SERVICES_AC_UNIT]->(AirConditioningUnit)
+
+### Sample Data:
+- Rooms have properties: `name` (e.g., "Room 1") and `type` (e.g., "Dorm")
+- AC Units have property: `name` (e.g., "AC Unit 1")
+- Temperature Sensors have property: `label` (e.g., "Temp Sensor 1")
+- Occupancy Sensors have property: `label` (e.g., "Occupancy Sensor 1")
+
+#### Neo4j (Cypher) Query Examples:
+- Find rooms serviced by a specific AC unit:
+MATCH (ac {name: "AC Unit 1"})-[]->(room)
+RETURN room.name, room.type
+- Find sensors connected to a specific room:
+MATCH (room {name: "Room 1"})-[]->(temp)
+MATCH (room)-[]->(occ)
+RETURN room.name, temp.label, occ.label
