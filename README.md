@@ -1,4 +1,4 @@
-# Digital Twin Natural Language Query Interface
+# Natural Language Queries on Graph and Time Series Databases
 
 This project provides a natural language interface to query a digital twin of a building, leveraging both a graph database (Neo4j) for structural information and a time-series database (InfluxDB) for sensor data.
 
